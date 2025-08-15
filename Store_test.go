@@ -219,7 +219,7 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Fatalf("Test_Store_ValueDelete: Expected [err] to be nil received [%v]", err.Error())
+		t.Fatal("Test_Store_ValueDelete: Expected [err] to be nil received [" + err.Error() + "]")
 	}
 
 	value := NewSearchValue().
@@ -229,13 +229,13 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 	err = store.SearchValueCreate(value)
 
 	if err != nil {
-		t.Fatal("unexpected error:", err)
+		t.Fatal("unexpected error: " + err.Error())
 		return
 	}
 
 	errDelete := store.SearchValueDelete(value)
 	if errDelete != nil {
-		t.Fatalf("ValueDelete Failed: " + errDelete.Error())
+		t.Fatal("ValueDelete Failed: " + errDelete.Error())
 	}
 
 	valueFound, errFind := store.SearchValueFindByID(value.ID())
@@ -286,7 +286,7 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Fatalf("Test_Store_ValueDelete: Expected [err] to be nil received [%v]", err.Error())
+		t.Fatal("Test_Store_ValueDelete: Expected [err] to be nil received [" + err.Error() + "]")
 	}
 
 	value := NewSearchValue().
@@ -302,7 +302,7 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 
 	errDelete := store.SearchValueSoftDelete(value)
 	if errDelete != nil {
-		t.Fatalf("ValueDelete Failed: " + errDelete.Error())
+		t.Fatal("ValueDelete Failed: " + errDelete.Error())
 	}
 
 	valueFound, errFind := store.SearchValueFindByID(value.ID())
