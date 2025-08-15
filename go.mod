@@ -1,6 +1,6 @@
-module github.com/gouniverse/blindindexstore
+module github.com/dracory/blindindexstore
 
-go 1.23.3
+go 1.24.5
 
 require (
 	github.com/doug-martin/goqu/v9 v9.19.0
