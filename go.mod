@@ -4,15 +4,19 @@ go 1.24.5
 
 require (
 	github.com/doug-martin/goqu/v9 v9.19.0
-	github.com/gouniverse/dataobject v1.3.0
+	github.com/dracory/dataobject v1.6.0
+	github.com/dracory/sb v0.11.0
+	github.com/dracory/uid v1.8.0
 	github.com/gouniverse/sb v0.9.0
-	github.com/gouniverse/uid v1.5.0
 	github.com/samber/lo v1.51.0
 	modernc.org/sqlite v1.38.2
 )
 
 require (
+	github.com/dracory/database v0.3.0 // indirect
 	github.com/gouniverse/base v0.9.0 // indirect
+	github.com/gouniverse/dataobject v1.3.0 // indirect
+	github.com/gouniverse/uid v1.5.0 // indirect
 	github.com/spf13/cast v1.9.2 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 )
