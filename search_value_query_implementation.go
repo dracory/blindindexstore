@@ -33,9 +33,6 @@ type searchValueQueryImplementation struct {
 	searchType    string
 	hasSearchType bool
 
-	metaSearch    []string
-	metaSearchNot []string
-
 	offset    int
 	hasOffset bool
 
@@ -126,32 +123,6 @@ func (o *searchValueQueryImplementation) SetSearchType(searchType string) Search
 	o.searchType = searchType
 	o.hasSearchType = true
 	return o
-}
-
-func (o *searchValueQueryImplementation) AddMetaSearch(needle string) SearchValueQueryInterface {
-	if o.metaSearch == nil {
-		o.metaSearch = []string{}
-	}
-
-	o.metaSearch = append(o.metaSearch, needle)
-	return o
-}
-
-func (o *searchValueQueryImplementation) GetMetaSearch() []string {
-	return o.metaSearch
-}
-
-func (o *searchValueQueryImplementation) AddMetaSearchNot(needle string) SearchValueQueryInterface {
-	if o.metaSearchNot == nil {
-		o.metaSearchNot = []string{}
-	}
-
-	o.metaSearchNot = append(o.metaSearchNot, needle)
-	return o
-}
-
-func (o *searchValueQueryImplementation) GetMetaSearchNot() []string {
-	return o.metaSearchNot
 }
 
 func (o *searchValueQueryImplementation) Offset() int {
@@ -359,23 +330,6 @@ func (o *searchValueQueryImplementation) ToSelectDataset(store StoreInterface) (
 			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + searchValue))
 		default:
 			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Eq(searchValue))
-		}
-	}
-
-	if len(o.metaSearch) > 0 {
-		ors := make([]goqu.Expression, 0, len(o.metaSearch))
-		for _, needle := range o.metaSearch {
-			ors = append(ors, goqu.C(COLUMN_METAS).Like("%"+needle+"%"))
-		}
-
-		if len(ors) > 0 {
-			dataset = dataset.Where(goqu.Or(ors...))
-		}
-	}
-
-	if len(o.metaSearchNot) > 0 {
-		for _, needle := range o.metaSearchNot {
-			dataset = dataset.Where(goqu.C(COLUMN_METAS).NotLike("%" + needle + "%"))
 		}
 	}
 

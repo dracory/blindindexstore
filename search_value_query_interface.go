@@ -28,12 +28,6 @@ type SearchValueQueryInterface interface {
 	HasSearchType() bool
 	SetSearchType(searchType string) SearchValueQueryInterface
 
-	// Meta search methods
-	AddMetaSearch(needle string) SearchValueQueryInterface
-	GetMetaSearch() []string
-	AddMetaSearchNot(needle string) SearchValueQueryInterface
-	GetMetaSearchNot() []string
-
 	Offset() int
 	HasOffset() bool
 	SetOffset(offset int) SearchValueQueryInterface
