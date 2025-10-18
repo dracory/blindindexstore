@@ -4,15 +4,15 @@ type StoreInterface interface {
 	AutoMigrate() error
 
 	Search(needle, searchType string) (refIDs []string, err error)
-	SearchValueCreate(value *SearchValue) error
-	SearchValueDelete(value *SearchValue) error
+	SearchValueCreate(value SearchValueInterface) error
+	SearchValueDelete(value SearchValueInterface) error
 	SearchValueDeleteByID(valueID string) error
-	SearchValueFindByID(id string) (*SearchValue, error)
-	SearchValueFindBySourceReferenceID(sourceReferenceID string) (*SearchValue, error)
-	SearchValueList(options SearchValueQueryOptions) ([]SearchValue, error)
-	SearchValueSoftDelete(discount *SearchValue) error
+	SearchValueFindByID(id string) (SearchValueInterface, error)
+	SearchValueFindBySourceReferenceID(sourceReferenceID string) (SearchValueInterface, error)
+	SearchValueList(options SearchValueQueryOptions) ([]SearchValueInterface, error)
+	SearchValueSoftDelete(discount SearchValueInterface) error
 	SearchValueSoftDeleteByID(discountID string) error
-	SearchValueUpdate(value *SearchValue) error
+	SearchValueUpdate(value SearchValueInterface) error
 	Truncate() error
 
 	// IsAutomigrateEnabled returns whether automigrate is enabled
@@ -30,5 +30,5 @@ type SearchValueQueryOptions struct {
 	SortOrder         string
 	OrderBy           string
 	CountOnly         bool
-	WithDeleted       bool
+	WithSoftDeleted   bool
 }

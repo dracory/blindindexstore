@@ -82,7 +82,7 @@ func (store *storeImplementation) Search(needle, searchType string) (refIDs []st
 
 // SearchValueCreate creates the record
 // Side effect! Transforms the value
-func (store *storeImplementation) SearchValueCreate(searchValue *SearchValue) error {
+func (store *storeImplementation) SearchValueCreate(searchValue SearchValueInterface) error {
 	searchValue.SetCreatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 	searchValue.SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 	searchValue.SetSearchValue(store.transformer.Transform(searchValue.SearchValue()))
@@ -114,7 +114,7 @@ func (store *storeImplementation) SearchValueCreate(searchValue *SearchValue) er
 	return nil
 }
 
-func (store *storeImplementation) SearchValueDelete(searchValue *SearchValue) error {
+func (store *storeImplementation) SearchValueDelete(searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("searchValue is nil")
 	}
@@ -146,7 +146,7 @@ func (store *storeImplementation) SearchValueDeleteByID(id string) error {
 	return err
 }
 
-func (store *storeImplementation) SearchValueFindByID(id string) (*SearchValue, error) {
+func (store *storeImplementation) SearchValueFindByID(id string) (SearchValueInterface, error) {
 	if id == "" {
 		return nil, errors.New("searchValue id is empty")
 	}
@@ -161,13 +161,13 @@ func (store *storeImplementation) SearchValueFindByID(id string) (*SearchValue, 
 	}
 
 	if len(list) > 0 {
-		return &list[0], nil
+		return list[0], nil
 	}
 
 	return nil, nil
 }
 
-func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceReferenceID string) (*SearchValue, error) {
+func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceReferenceID string) (SearchValueInterface, error) {
 	if sourceReferenceID == "" {
 		return nil, errors.New("searchValue objectID is empty")
 	}
@@ -182,19 +182,19 @@ func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceRefer
 	}
 
 	if len(list) > 0 {
-		return &list[0], nil
+		return list[0], nil
 	}
 
 	return nil, nil
 }
 
-func (store *storeImplementation) SearchValueList(options SearchValueQueryOptions) ([]SearchValue, error) {
+func (store *storeImplementation) SearchValueList(options SearchValueQueryOptions) ([]SearchValueInterface, error) {
 	q := store.searchValueQuery(options)
 
 	sqlStr, _, errSql := q.Select().ToSQL()
 
 	if errSql != nil {
-		return []SearchValue{}, nil
+		return []SearchValueInterface{}, nil
 	}
 
 	if store.debugEnabled {
@@ -204,25 +204,25 @@ func (store *storeImplementation) SearchValueList(options SearchValueQueryOption
 	db := sb.NewDatabase(store.db, store.dbDriverName)
 	modelMaps, err := db.SelectToMapString(sqlStr)
 	if err != nil {
-		return []SearchValue{}, err
+		return []SearchValueInterface{}, err
 	}
 
-	list := []SearchValue{}
+	list := []SearchValueInterface{}
 
 	lo.ForEach(modelMaps, func(modelMap map[string]string, index int) {
 		model := NewSearchValueFromExistingData(modelMap)
-		list = append(list, *model)
+		list = append(list, model)
 	})
 
 	return list, nil
 }
 
-func (store *storeImplementation) SearchValueSoftDelete(searchValue *SearchValue) error {
+func (store *storeImplementation) SearchValueSoftDelete(searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("searchValue is nil")
 	}
 
-	searchValue.SetDeletedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
+	searchValue.SetSoftDeletedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 
 	return store.SearchValueUpdate(searchValue)
 }
@@ -239,7 +239,7 @@ func (store *storeImplementation) SearchValueSoftDeleteByID(id string) error {
 
 // SearchValueUpdate updates the record
 // Side effect! Transforms the value, use with caution
-func (store *storeImplementation) SearchValueUpdate(searchValue *SearchValue) error {
+func (store *storeImplementation) SearchValueUpdate(searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("order is nil")
 	}
@@ -354,8 +354,8 @@ func (store *storeImplementation) searchValueQuery(options SearchValueQueryOptio
 		}
 	}
 
-	if !options.WithDeleted {
-		q = q.Where(goqu.C(COLUMN_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
+	if !options.WithSoftDeleted {
+		q = q.Where(goqu.C(COLUMN_SOFT_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
 	}
 
 	return q
