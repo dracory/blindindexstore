@@ -2,7 +2,6 @@ package blindindexstore
 
 import (
 	"database/sql"
-	"os"
 	"strings"
 	"testing"
 
@@ -10,10 +9,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func initDB(filepath string) *sql.DB {
-	_ = os.Remove(filepath) // remove database
-	dsn := filepath + "?parseTime=true"
-	db, err := sql.Open("sqlite", dsn)
+func initDB() *sql.DB {
+	db, err := sql.Open("sqlite", ":memory:?parseTime=true")
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +19,7 @@ func initDB(filepath string) *sql.DB {
 }
 
 func Test_Store_WithAutoMigrate(t *testing.T) {
-	db := initDB("test_store_with_automigrate.db")
+	db := initDB()
 
 	storeAutomigrateFalse, errAutomigrateFalse := NewStore(NewStoreOptions{
 		TableName:          "test_blindindex_with_automigrate_false",
@@ -56,7 +53,7 @@ func Test_Store_WithAutoMigrate(t *testing.T) {
 }
 
 func Test_Store_SearchValueCreate(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -90,7 +87,7 @@ func Test_Store_SearchValueCreate(t *testing.T) {
 }
 
 func Test_Store_SearchValueUpdate(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -145,7 +142,7 @@ func Test_Store_SearchValueUpdate(t *testing.T) {
 }
 
 func Test_Store_SearchValueFindByID(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -201,7 +198,7 @@ func Test_Store_SearchValueFindByID(t *testing.T) {
 }
 
 func Test_Store_SearchValueDelete(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -268,7 +265,7 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 }
 
 func Test_Store_SearchValueSoftDelete(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -335,7 +332,7 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 }
 
 func Test_Store_SearchEqual(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -403,7 +400,7 @@ func Test_Store_SearchEqual(t *testing.T) {
 }
 
 func Test_Store_SearchContains_NoChangeTransformer(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -480,7 +477,7 @@ func Test_Store_SearchContains_NoChangeTransformer(t *testing.T) {
 }
 
 func Test_Store_SearchContains_Rot13Transformer(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -557,7 +554,7 @@ func Test_Store_SearchContains_Rot13Transformer(t *testing.T) {
 }
 
 func Test_Store_SearchContains_Sha256Transformer(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
@@ -641,7 +638,7 @@ func Test_Store_SearchContains_Sha256Transformer(t *testing.T) {
 }
 
 func Test_Store_SearchContains_UniTransformer(t *testing.T) {
-	db := initDB(":memory:")
+	db := initDB()
 
 	store, err := NewStore(NewStoreOptions{
 		DB:                 db,
