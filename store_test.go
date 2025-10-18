@@ -18,6 +18,64 @@ func initDB() *sql.DB {
 	return db
 }
 
+func Test_Store_SearchValueFindBySourceReferenceID(t *testing.T) {
+	db := initDB()
+
+	store, err := NewStore(NewStoreOptions{
+		DB:                 db,
+		TableName:          "test_blindindex_value_find_by_source_reference_id",
+		AutomigrateEnabled: true,
+		Transformer:        &NoChangeTransformer{},
+	})
+
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	value := NewSearchValue().
+		SetSourceReferenceID("RefId01").
+		SetSearchValue("SearchValue01")
+
+	if err := store.SearchValueCreate(value); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	found, err := store.SearchValueFindBySourceReferenceID("RefId01")
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if found == nil || found.SourceReferenceID() != "RefId01" {
+		t.Fatalf("expected to find search value by source reference id")
+	}
+
+	missing, err := store.SearchValueFindBySourceReferenceID("missing")
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if missing != nil {
+		t.Fatalf("expected missing search value to be nil")
+	}
+
+	_, err = store.SearchValueFindBySourceReferenceID("")
+	if err == nil {
+		t.Fatalf("expected error for empty source reference id")
+	}
+}
+
+func Test_Store_EnableDebug(t *testing.T) {
+	store := &storeImplementation{}
+	store.EnableDebug(true)
+	if !store.debugEnabled {
+		t.Fatalf("expected debugEnabled to be true")
+	}
+	store.EnableDebug(false)
+	if store.debugEnabled {
+		t.Fatalf("expected debugEnabled to be false")
+	}
+}
+
 func Test_Store_WithAutoMigrate(t *testing.T) {
 	db := initDB()
 
@@ -49,6 +107,10 @@ func Test_Store_WithAutoMigrate(t *testing.T) {
 
 	if storeAutomigrateTrue.IsAutomigrateEnabled() != true {
 		t.Fatalf("automigrateEnabled: Expected [true] received [%v]", storeAutomigrateTrue.IsAutomigrateEnabled())
+	}
+
+	if err := storeAutomigrateTrue.AutoMigrate(); err != nil {
+		t.Fatalf("unexpected automigrate error: %v", err)
 	}
 }
 
@@ -329,6 +391,48 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 
 }
 
+func Test_Store_SearchValueSoftDeleteByID(t *testing.T) {
+	db := initDB()
+
+	store, err := NewStore(NewStoreOptions{
+		DB:                 db,
+		TableName:          "test_blindindex_value_soft_delete_by_id",
+		AutomigrateEnabled: true,
+		Transformer:        &NoChangeTransformer{},
+	})
+
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	value := NewSearchValue().
+		SetSourceReferenceID("RefId01").
+		SetSearchValue("SearchValue01")
+
+	if err := store.SearchValueCreate(value); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if err := store.SearchValueSoftDeleteByID(value.ID()); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	values, err := store.SearchValueList(NewSearchValueQuery().
+		SetID(value.ID()).
+		SetWithSoftDeleted(true))
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if len(values) != 1 {
+		t.Fatalf("expected exactly one value with soft deleted included")
+	}
+
+	if values[0].SoftDeletedAt() == sb.MAX_DATETIME {
+		t.Fatalf("expected value to be soft deleted")
+	}
+}
+
 func Test_Store_SearchEqual(t *testing.T) {
 	db := initDB()
 
@@ -471,6 +575,42 @@ func Test_Store_SearchContains_NoChangeTransformer(t *testing.T) {
 	if refsFound[1] != "USER022" {
 		t.Fatal("Reference ID found MUST BE 'USER022', found: ", refsFound[1])
 		return
+	}
+}
+
+func Test_Store_Truncate(t *testing.T) {
+	db := initDB()
+
+	store, err := NewStore(NewStoreOptions{
+		DB:                 db,
+		TableName:          "test_blindindex_value_truncate",
+		AutomigrateEnabled: true,
+		Transformer:        &NoChangeTransformer{},
+	})
+
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	value := NewSearchValue().
+		SetSourceReferenceID("RefId01").
+		SetSearchValue("SearchValue01")
+
+	if err := store.SearchValueCreate(value); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if err := store.Truncate(); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	values, err := store.SearchValueList(NewSearchValueQuery())
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if len(values) != 0 {
+		t.Fatalf("expected truncate to remove all rows")
 	}
 }
 

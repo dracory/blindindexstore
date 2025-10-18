@@ -295,13 +295,7 @@ func (st *storeImplementation) IsAutomigrateEnabled() bool {
 }
 
 func (store *storeImplementation) Truncate() error {
-	sqlStr, _, errSql := goqu.Dialect(store.dbDriverName).
-		Truncate(store.tableName).
-		ToSQL()
-
-	if errSql != nil {
-		return errSql
-	}
+	sqlStr := "DELETE FROM " + store.tableName
 
 	if store.debugEnabled {
 		log.Println(sqlStr)
