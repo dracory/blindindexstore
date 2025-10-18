@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/doug-martin/goqu/v9"
 
@@ -295,7 +296,25 @@ func (st *storeImplementation) IsAutomigrateEnabled() bool {
 }
 
 func (store *storeImplementation) Truncate() error {
-	sqlStr := "DELETE FROM " + store.tableName
+	var (
+		sqlStr string
+		errSql error
+	)
+
+	if strings.EqualFold(store.dbDriverName, "sqlite") {
+		sqlStr, _, errSql = goqu.Dialect(store.dbDriverName).
+			Delete(store.tableName).
+			Prepared(true).
+			ToSQL()
+	} else {
+		sqlStr, _, errSql = goqu.Dialect(store.dbDriverName).
+			Truncate(store.tableName).
+			ToSQL()
+	}
+
+	if errSql != nil {
+		return errSql
+	}
 
 	if store.debugEnabled {
 		log.Println(sqlStr)
