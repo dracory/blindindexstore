@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"strings"
 
 	"github.com/doug-martin/goqu/v9"
 
@@ -49,15 +48,20 @@ func (st *storeImplementation) EnableDebug(debug bool) {
 }
 
 func (store *storeImplementation) Search(needle, searchType string) (refIDs []string, err error) {
-	q := store.searchValueQuery(SearchValueQueryOptions{
-		SearchValue: needle,
-		SearchType:  searchType,
-	})
+	query := NewSearchValueQuery().
+		SetSearchValue(needle).
+		SetSearchType(searchType)
 
-	sqlStr, _, errSql := q.Select().ToSQL()
+	// Build the select dataset
+	ds, _, err := query.ToSelectDataset(store)
+	if err != nil {
+		return nil, err
+	}
 
-	if errSql != nil {
-		return refIDs, nil
+	// Generate SQL and parameters
+	sqlStr, sqlParams, err := ds.ToSQL()
+	if err != nil {
+		return nil, err
 	}
 
 	if store.debugEnabled {
@@ -65,7 +69,7 @@ func (store *storeImplementation) Search(needle, searchType string) (refIDs []st
 	}
 
 	db := sb.NewDatabase(store.db, store.dbDriverName)
-	modelMaps, err := db.SelectToMapString(sqlStr)
+	modelMaps, err := db.SelectToMapString(sqlStr, sqlParams...)
 	if err != nil {
 		return refIDs, err
 	}
@@ -151,10 +155,9 @@ func (store *storeImplementation) SearchValueFindByID(id string) (SearchValueInt
 		return nil, errors.New("searchValue id is empty")
 	}
 
-	list, err := store.SearchValueList(SearchValueQueryOptions{
-		ID:    id,
-		Limit: 1,
-	})
+	list, err := store.SearchValueList(NewSearchValueQuery().
+		SetID(id).
+		SetLimit(1))
 
 	if err != nil {
 		return nil, err
@@ -172,10 +175,9 @@ func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceRefer
 		return nil, errors.New("searchValue objectID is empty")
 	}
 
-	list, err := store.SearchValueList(SearchValueQueryOptions{
-		SourceReferenceID: sourceReferenceID,
-		Limit:             1,
-	})
+	list, err := store.SearchValueList(NewSearchValueQuery().
+		SetSourceReferenceID(sourceReferenceID).
+		SetLimit(1))
 
 	if err != nil {
 		return nil, err
@@ -188,13 +190,17 @@ func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceRefer
 	return nil, nil
 }
 
-func (store *storeImplementation) SearchValueList(options SearchValueQueryOptions) ([]SearchValueInterface, error) {
-	q := store.searchValueQuery(options)
+func (store *storeImplementation) SearchValueList(query SearchValueQueryInterface) ([]SearchValueInterface, error) {
+	// Build the select dataset
+	ds, _, err := query.ToSelectDataset(store)
+	if err != nil {
+		return nil, err
+	}
 
-	sqlStr, _, errSql := q.Select().ToSQL()
-
-	if errSql != nil {
-		return []SearchValueInterface{}, nil
+	// Generate SQL and parameters
+	sqlStr, sqlParams, err := ds.ToSQL()
+	if err != nil {
+		return nil, err
 	}
 
 	if store.debugEnabled {
@@ -202,7 +208,7 @@ func (store *storeImplementation) SearchValueList(options SearchValueQueryOption
 	}
 
 	db := sb.NewDatabase(store.db, store.dbDriverName)
-	modelMaps, err := db.SelectToMapString(sqlStr)
+	modelMaps, err := db.SelectToMapString(sqlStr, sqlParams...)
 	if err != nil {
 		return []SearchValueInterface{}, err
 	}
@@ -306,57 +312,57 @@ func (store *storeImplementation) Truncate() error {
 	return err
 }
 
-func (store *storeImplementation) searchValueQuery(options SearchValueQueryOptions) *goqu.SelectDataset {
-	q := goqu.Dialect(store.dbDriverName).From(store.tableName)
+// func (store *storeImplementation) searchValueQuery(options SearchValueQueryOptions) *goqu.SelectDataset {
+// 	q := goqu.Dialect(store.dbDriverName).From(store.tableName)
 
-	if options.ID != "" {
-		q = q.Where(goqu.C("id").Eq(options.ID))
-	}
+// 	if options.ID != "" {
+// 		q = q.Where(goqu.C("id").Eq(options.ID))
+// 	}
 
-	if options.SourceReferenceID != "" {
-		q = q.Where(goqu.C(COLUMN_SOURCE_REFERENCE_ID).Eq(options.SourceReferenceID))
-	}
+// 	if options.SourceReferenceID != "" {
+// 		q = q.Where(goqu.C(COLUMN_SOURCE_REFERENCE_ID).Eq(options.SourceReferenceID))
+// 	}
 
-	if options.SearchValue != "" {
-		options.SearchValue = store.transformer.Transform(options.SearchValue)
-		if options.SearchType == SEARCH_TYPE_CONTAINS {
-			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + options.SearchValue + "%"))
-		} else if options.SearchType == SEARCH_TYPE_STARTS_WITH {
-			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
-		} else if options.SearchType == SEARCH_TYPE_ENDS_WITH {
-			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
-		} else {
-			// default to strict search
-			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Eq(options.SearchValue))
-		}
-	}
+// 	if options.SearchValue != "" {
+// 		options.SearchValue = store.transformer.Transform(options.SearchValue)
+// 		if options.SearchType == SEARCH_TYPE_CONTAINS {
+// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + options.SearchValue + "%"))
+// 		} else if options.SearchType == SEARCH_TYPE_STARTS_WITH {
+// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
+// 		} else if options.SearchType == SEARCH_TYPE_ENDS_WITH {
+// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
+// 		} else {
+// 			// default to strict search
+// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Eq(options.SearchValue))
+// 		}
+// 	}
 
-	if !options.CountOnly {
-		if options.Limit > 0 {
-			q = q.Limit(uint(options.Limit))
-		}
+// 	if !options.CountOnly {
+// 		if options.Limit > 0 {
+// 			q = q.Limit(uint(options.Limit))
+// 		}
 
-		if options.Offset > 0 {
-			q = q.Offset(uint(options.Offset))
-		}
-	}
+// 		if options.Offset > 0 {
+// 			q = q.Offset(uint(options.Offset))
+// 		}
+// 	}
 
-	sortOrder := sb.DESC
-	if options.SortOrder != "" {
-		sortOrder = options.SortOrder
-	}
+// 	sortOrder := sb.DESC
+// 	if options.SortOrder != "" {
+// 		sortOrder = options.SortOrder
+// 	}
 
-	if options.OrderBy != "" {
-		if strings.EqualFold(sortOrder, sb.ASC) {
-			q = q.Order(goqu.I(options.OrderBy).Asc())
-		} else {
-			q = q.Order(goqu.I(options.OrderBy).Desc())
-		}
-	}
+// 	if options.OrderBy != "" {
+// 		if strings.EqualFold(sortOrder, sb.ASC) {
+// 			q = q.Order(goqu.I(options.OrderBy).Asc())
+// 		} else {
+// 			q = q.Order(goqu.I(options.OrderBy).Desc())
+// 		}
+// 	}
 
-	if !options.WithSoftDeleted {
-		q = q.Where(goqu.C(COLUMN_SOFT_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
-	}
+// 	if !options.WithSoftDeleted {
+// 		q = q.Where(goqu.C(COLUMN_SOFT_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
+// 	}
 
-	return q
-}
+// 	return q
+// }

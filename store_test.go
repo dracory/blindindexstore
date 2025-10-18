@@ -247,10 +247,9 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 		return
 	}
 
-	valuesFound2, errFind := store.SearchValueList(SearchValueQueryOptions{
-		ID:              value.ID(),
-		WithSoftDeleted: true,
-	})
+	valuesFound2, errFind := store.SearchValueList(NewSearchValueQuery().
+		SetID(value.ID()).
+		SetWithSoftDeleted(true))
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -314,10 +313,9 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 		return
 	}
 
-	valuesFound2, errFind := store.SearchValueList(SearchValueQueryOptions{
-		ID:              value.ID(),
-		WithSoftDeleted: true,
-	})
+	valuesFound2, errFind := store.SearchValueList(NewSearchValueQuery().
+		SetID(value.ID()).
+		SetWithSoftDeleted(true))
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)

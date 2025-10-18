@@ -9,7 +9,7 @@ type StoreInterface interface {
 	SearchValueDeleteByID(valueID string) error
 	SearchValueFindByID(id string) (SearchValueInterface, error)
 	SearchValueFindBySourceReferenceID(sourceReferenceID string) (SearchValueInterface, error)
-	SearchValueList(options SearchValueQueryOptions) ([]SearchValueInterface, error)
+	SearchValueList(query SearchValueQueryInterface) ([]SearchValueInterface, error)
 	SearchValueSoftDelete(discount SearchValueInterface) error
 	SearchValueSoftDeleteByID(discountID string) error
 	SearchValueUpdate(value SearchValueInterface) error
@@ -17,18 +17,4 @@ type StoreInterface interface {
 
 	// IsAutomigrateEnabled returns whether automigrate is enabled
 	IsAutomigrateEnabled() bool
-}
-
-type SearchValueQueryOptions struct {
-	ID                string
-	IDIn              string
-	SourceReferenceID string
-	SearchValue       string
-	SearchType        string
-	Offset            int
-	Limit             int
-	SortOrder         string
-	OrderBy           string
-	CountOnly         bool
-	WithSoftDeleted   bool
 }
