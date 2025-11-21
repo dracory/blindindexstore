@@ -1,6 +1,7 @@
 package blindindexstore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -8,7 +9,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 
-	"github.com/dracory/sb"
+	"github.com/dracory/database"
 	"github.com/dromara/carbon/v2"
 	"github.com/samber/lo"
 )
@@ -48,7 +49,7 @@ func (st *storeImplementation) EnableDebug(debug bool) {
 	st.debugEnabled = debug
 }
 
-func (store *storeImplementation) Search(needle, searchType string) (refIDs []string, err error) {
+func (store *storeImplementation) Search(ctx context.Context, needle, searchType string) (refIDs []string, err error) {
 	query := NewSearchValueQuery().
 		SetSearchValue(needle).
 		SetSearchType(searchType)
@@ -69,8 +70,7 @@ func (store *storeImplementation) Search(needle, searchType string) (refIDs []st
 		log.Println(sqlStr)
 	}
 
-	db := sb.NewDatabase(store.db, store.dbDriverName)
-	modelMaps, err := db.SelectToMapString(sqlStr, sqlParams...)
+	modelMaps, err := database.SelectToMapString(database.NewQueryableContext(ctx, store.db), sqlStr, sqlParams...)
 	if err != nil {
 		return refIDs, err
 	}
@@ -87,7 +87,7 @@ func (store *storeImplementation) Search(needle, searchType string) (refIDs []st
 
 // SearchValueCreate creates the record
 // Side effect! Transforms the value
-func (store *storeImplementation) SearchValueCreate(searchValue SearchValueInterface) error {
+func (store *storeImplementation) SearchValueCreate(ctx context.Context, searchValue SearchValueInterface) error {
 	searchValue.SetCreatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 	searchValue.SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 	searchValue.SetSearchValue(store.transformer.Transform(searchValue.SearchValue()))
@@ -108,7 +108,7 @@ func (store *storeImplementation) SearchValueCreate(searchValue SearchValueInter
 		log.Println(sqlStr)
 	}
 
-	_, err := store.db.Exec(sqlStr, params...)
+	_, err := store.db.ExecContext(ctx, sqlStr, params...)
 
 	if err != nil {
 		return err
@@ -119,15 +119,15 @@ func (store *storeImplementation) SearchValueCreate(searchValue SearchValueInter
 	return nil
 }
 
-func (store *storeImplementation) SearchValueDelete(searchValue SearchValueInterface) error {
+func (store *storeImplementation) SearchValueDelete(ctx context.Context, searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("searchValue is nil")
 	}
 
-	return store.SearchValueDeleteByID(searchValue.ID())
+	return store.SearchValueDeleteByID(ctx, searchValue.ID())
 }
 
-func (store *storeImplementation) SearchValueDeleteByID(id string) error {
+func (store *storeImplementation) SearchValueDeleteByID(ctx context.Context, id string) error {
 	if id == "" {
 		return errors.New("searchValue id is empty")
 	}
@@ -146,17 +146,17 @@ func (store *storeImplementation) SearchValueDeleteByID(id string) error {
 		log.Println(sqlStr)
 	}
 
-	_, err := store.db.Exec(sqlStr, params...)
+	_, err := store.db.ExecContext(ctx, sqlStr, params...)
 
 	return err
 }
 
-func (store *storeImplementation) SearchValueFindByID(id string) (SearchValueInterface, error) {
+func (store *storeImplementation) SearchValueFindByID(ctx context.Context, id string) (SearchValueInterface, error) {
 	if id == "" {
 		return nil, errors.New("searchValue id is empty")
 	}
 
-	list, err := store.SearchValueList(NewSearchValueQuery().
+	list, err := store.SearchValueList(ctx, NewSearchValueQuery().
 		SetID(id).
 		SetLimit(1))
 
@@ -171,12 +171,12 @@ func (store *storeImplementation) SearchValueFindByID(id string) (SearchValueInt
 	return nil, nil
 }
 
-func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceReferenceID string) (SearchValueInterface, error) {
+func (store *storeImplementation) SearchValueFindBySourceReferenceID(ctx context.Context, sourceReferenceID string) (SearchValueInterface, error) {
 	if sourceReferenceID == "" {
 		return nil, errors.New("searchValue objectID is empty")
 	}
 
-	list, err := store.SearchValueList(NewSearchValueQuery().
+	list, err := store.SearchValueList(ctx, NewSearchValueQuery().
 		SetSourceReferenceID(sourceReferenceID).
 		SetLimit(1))
 
@@ -191,7 +191,7 @@ func (store *storeImplementation) SearchValueFindBySourceReferenceID(sourceRefer
 	return nil, nil
 }
 
-func (store *storeImplementation) SearchValueList(query SearchValueQueryInterface) ([]SearchValueInterface, error) {
+func (store *storeImplementation) SearchValueList(ctx context.Context, query SearchValueQueryInterface) ([]SearchValueInterface, error) {
 	// Build the select dataset
 	ds, _, err := query.ToSelectDataset(store)
 	if err != nil {
@@ -208,8 +208,7 @@ func (store *storeImplementation) SearchValueList(query SearchValueQueryInterfac
 		log.Println(sqlStr)
 	}
 
-	db := sb.NewDatabase(store.db, store.dbDriverName)
-	modelMaps, err := db.SelectToMapString(sqlStr, sqlParams...)
+	modelMaps, err := database.SelectToMapString(database.NewQueryableContext(ctx, store.db), sqlStr, sqlParams...)
 	if err != nil {
 		return []SearchValueInterface{}, err
 	}
@@ -224,29 +223,29 @@ func (store *storeImplementation) SearchValueList(query SearchValueQueryInterfac
 	return list, nil
 }
 
-func (store *storeImplementation) SearchValueSoftDelete(searchValue SearchValueInterface) error {
+func (store *storeImplementation) SearchValueSoftDelete(ctx context.Context, searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("searchValue is nil")
 	}
 
 	searchValue.SetSoftDeletedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 
-	return store.SearchValueUpdate(searchValue)
+	return store.SearchValueUpdate(ctx, searchValue)
 }
 
-func (store *storeImplementation) SearchValueSoftDeleteByID(id string) error {
-	searchValue, err := store.SearchValueFindByID(id)
+func (store *storeImplementation) SearchValueSoftDeleteByID(ctx context.Context, id string) error {
+	searchValue, err := store.SearchValueFindByID(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
-	return store.SearchValueSoftDelete(searchValue)
+	return store.SearchValueSoftDelete(ctx, searchValue)
 }
 
 // SearchValueUpdate updates the record
 // Side effect! Transforms the value, use with caution
-func (store *storeImplementation) SearchValueUpdate(searchValue SearchValueInterface) error {
+func (store *storeImplementation) SearchValueUpdate(ctx context.Context, searchValue SearchValueInterface) error {
 	if searchValue == nil {
 		return errors.New("order is nil")
 	}
@@ -283,7 +282,7 @@ func (store *storeImplementation) SearchValueUpdate(searchValue SearchValueInter
 		log.Println(sqlStr)
 	}
 
-	_, err := store.db.Exec(sqlStr, params...)
+	_, err := store.db.ExecContext(ctx, sqlStr, params...)
 
 	searchValue.MarkAsNotDirty()
 
@@ -295,7 +294,7 @@ func (st *storeImplementation) IsAutomigrateEnabled() bool {
 	return st.automigrateEnabled
 }
 
-func (store *storeImplementation) Truncate() error {
+func (store *storeImplementation) Truncate(ctx context.Context) error {
 	var (
 		sqlStr string
 		errSql error
@@ -320,16 +319,11 @@ func (store *storeImplementation) Truncate() error {
 		log.Println(sqlStr)
 	}
 
-	_, err := store.db.Exec(sqlStr)
+	_, err := store.db.ExecContext(ctx, sqlStr)
 
 	return err
 }
 
-// func (store *storeImplementation) searchValueQuery(options SearchValueQueryOptions) *goqu.SelectDataset {
-// 	q := goqu.Dialect(store.dbDriverName).From(store.tableName)
-
-// 	if options.ID != "" {
-// 		q = q.Where(goqu.C("id").Eq(options.ID))
 // 	}
 
 // 	if options.SourceReferenceID != "" {

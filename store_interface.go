@@ -1,19 +1,21 @@
 package blindindexstore
 
+import "context"
+
 type StoreInterface interface {
 	AutoMigrate() error
 
-	Search(needle, searchType string) (refIDs []string, err error)
-	SearchValueCreate(value SearchValueInterface) error
-	SearchValueDelete(value SearchValueInterface) error
-	SearchValueDeleteByID(valueID string) error
-	SearchValueFindByID(id string) (SearchValueInterface, error)
-	SearchValueFindBySourceReferenceID(sourceReferenceID string) (SearchValueInterface, error)
-	SearchValueList(query SearchValueQueryInterface) ([]SearchValueInterface, error)
-	SearchValueSoftDelete(discount SearchValueInterface) error
-	SearchValueSoftDeleteByID(discountID string) error
-	SearchValueUpdate(value SearchValueInterface) error
-	Truncate() error
+	Search(ctx context.Context, needle, searchType string) (refIDs []string, err error)
+	SearchValueCreate(ctx context.Context, value SearchValueInterface) error
+	SearchValueDelete(ctx context.Context, value SearchValueInterface) error
+	SearchValueDeleteByID(ctx context.Context, valueID string) error
+	SearchValueFindByID(ctx context.Context, id string) (SearchValueInterface, error)
+	SearchValueFindBySourceReferenceID(ctx context.Context, sourceReferenceID string) (SearchValueInterface, error)
+	SearchValueList(ctx context.Context, query SearchValueQueryInterface) ([]SearchValueInterface, error)
+	SearchValueSoftDelete(ctx context.Context, discount SearchValueInterface) error
+	SearchValueSoftDeleteByID(ctx context.Context, discountID string) error
+	SearchValueUpdate(ctx context.Context, value SearchValueInterface) error
+	Truncate(ctx context.Context) error
 
 	// IsAutomigrateEnabled returns whether automigrate is enabled
 	IsAutomigrateEnabled() bool

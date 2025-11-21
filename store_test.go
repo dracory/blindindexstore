@@ -1,6 +1,7 @@
 package blindindexstore
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 	"testing"
@@ -36,11 +37,11 @@ func Test_Store_SearchValueFindBySourceReferenceID(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	if err := store.SearchValueCreate(value); err != nil {
+	if err := store.SearchValueCreate(context.Background(), value); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	found, err := store.SearchValueFindBySourceReferenceID("RefId01")
+	found, err := store.SearchValueFindBySourceReferenceID(context.Background(), "RefId01")
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -49,7 +50,7 @@ func Test_Store_SearchValueFindBySourceReferenceID(t *testing.T) {
 		t.Fatalf("expected to find search value by source reference id")
 	}
 
-	missing, err := store.SearchValueFindBySourceReferenceID("missing")
+	missing, err := store.SearchValueFindBySourceReferenceID(context.Background(), "missing")
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -58,7 +59,7 @@ func Test_Store_SearchValueFindBySourceReferenceID(t *testing.T) {
 		t.Fatalf("expected missing search value to be nil")
 	}
 
-	_, err = store.SearchValueFindBySourceReferenceID("")
+	_, err = store.SearchValueFindBySourceReferenceID(context.Background(), "")
 	if err == nil {
 		t.Fatalf("expected error for empty source reference id")
 	}
@@ -136,7 +137,7 @@ func Test_Store_SearchValueCreate(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	err = store.SearchValueCreate(searchValue)
+	err = store.SearchValueCreate(context.Background(), searchValue)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -170,7 +171,7 @@ func Test_Store_SearchValueUpdate(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	err = store.SearchValueCreate(searchValue)
+	err = store.SearchValueCreate(context.Background(), searchValue)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -180,7 +181,7 @@ func Test_Store_SearchValueUpdate(t *testing.T) {
 		t.Fatal("Search value MUST BE 'ef46c0effb3e3a6d65fbbd46c039008205e67b8089339db1852ca0992804afb9', found: ", searchValue.SearchValue())
 	}
 
-	err = store.SearchValueUpdate(searchValue)
+	err = store.SearchValueUpdate(context.Background(), searchValue)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -191,7 +192,7 @@ func Test_Store_SearchValueUpdate(t *testing.T) {
 	}
 
 	searchValue.SetSearchValue("SearchValue01Changed")
-	err = store.SearchValueUpdate(searchValue)
+	err = store.SearchValueUpdate(context.Background(), searchValue)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -225,14 +226,14 @@ func Test_Store_SearchValueFindByID(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	err = store.SearchValueCreate(value)
+	err = store.SearchValueCreate(context.Background(), value)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 		return
 	}
 
-	valueFound, errFind := store.SearchValueFindByID(value.ID())
+	valueFound, errFind := store.SearchValueFindByID(context.Background(), value.ID())
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -285,19 +286,19 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	err = store.SearchValueCreate(value)
+	err = store.SearchValueCreate(context.Background(), value)
 
 	if err != nil {
 		t.Fatal("unexpected error: " + err.Error())
 		return
 	}
 
-	errDelete := store.SearchValueDelete(value)
+	errDelete := store.SearchValueDelete(context.Background(), value)
 	if errDelete != nil {
 		t.Fatal("ValueDelete Failed: " + errDelete.Error())
 	}
 
-	valueFound, errFind := store.SearchValueFindByID(value.ID())
+	valueFound, errFind := store.SearchValueFindByID(context.Background(), value.ID())
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -309,7 +310,7 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 		return
 	}
 
-	valuesFound2, errFind := store.SearchValueList(NewSearchValueQuery().
+	valuesFound2, errFind := store.SearchValueList(context.Background(), NewSearchValueQuery().
 		SetID(value.ID()).
 		SetWithSoftDeleted(true))
 
@@ -351,19 +352,19 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	err = store.SearchValueCreate(value)
+	err = store.SearchValueCreate(context.Background(), value)
 
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 		return
 	}
 
-	errDelete := store.SearchValueSoftDelete(value)
+	errDelete := store.SearchValueSoftDelete(context.Background(), value)
 	if errDelete != nil {
 		t.Fatal("ValueDelete Failed: " + errDelete.Error())
 	}
 
-	valueFound, errFind := store.SearchValueFindByID(value.ID())
+	valueFound, errFind := store.SearchValueFindByID(context.Background(), value.ID())
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -375,7 +376,7 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 		return
 	}
 
-	valuesFound2, errFind := store.SearchValueList(NewSearchValueQuery().
+	valuesFound2, errFind := store.SearchValueList(context.Background(), NewSearchValueQuery().
 		SetID(value.ID()).
 		SetWithSoftDeleted(true))
 
@@ -409,15 +410,15 @@ func Test_Store_SearchValueSoftDeleteByID(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	if err := store.SearchValueCreate(value); err != nil {
+	if err := store.SearchValueCreate(context.Background(), value); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	if err := store.SearchValueSoftDeleteByID(value.ID()); err != nil {
+	if err := store.SearchValueSoftDeleteByID(context.Background(), value.ID()); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	values, err := store.SearchValueList(NewSearchValueQuery().
+	values, err := store.SearchValueList(context.Background(), NewSearchValueQuery().
 		SetID(value.ID()).
 		SetWithSoftDeleted(true))
 	if err != nil {
@@ -474,7 +475,7 @@ func Test_Store_SearchEqual(t *testing.T) {
 			SetSourceReferenceID(v.RefID).
 			SetSearchValue(v.SearchValue)
 
-		err = store.SearchValueCreate(value)
+		err = store.SearchValueCreate(context.Background(), value)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -483,7 +484,7 @@ func Test_Store_SearchEqual(t *testing.T) {
 
 	}
 
-	refsFound, errFind := store.Search("test02@test.com", SEARCH_TYPE_EQUALS)
+	refsFound, errFind := store.Search(context.Background(), "test02@test.com", SEARCH_TYPE_EQUALS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -546,7 +547,7 @@ func Test_Store_SearchContains_NoChangeTransformer(t *testing.T) {
 			SetSourceReferenceID(v.RefID).
 			SetSearchValue(v.SearchValue)
 
-		err = store.SearchValueCreate(value)
+		err = store.SearchValueCreate(context.Background(), value)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -555,7 +556,7 @@ func Test_Store_SearchContains_NoChangeTransformer(t *testing.T) {
 
 	}
 
-	refsFound, errFind := store.Search("st02", SEARCH_TYPE_CONTAINS)
+	refsFound, errFind := store.Search(context.Background(), "st02", SEARCH_TYPE_CONTAINS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -596,15 +597,15 @@ func Test_Store_Truncate(t *testing.T) {
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
 
-	if err := store.SearchValueCreate(value); err != nil {
+	if err := store.SearchValueCreate(context.Background(), value); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	if err := store.Truncate(); err != nil {
+	if err := store.Truncate(context.Background()); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	values, err := store.SearchValueList(NewSearchValueQuery())
+	values, err := store.SearchValueList(context.Background(), NewSearchValueQuery())
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -659,7 +660,7 @@ func Test_Store_SearchContains_Rot13Transformer(t *testing.T) {
 			SetSourceReferenceID(v.RefID).
 			SetSearchValue(v.SearchValue)
 
-		err = store.SearchValueCreate(value)
+		err = store.SearchValueCreate(context.Background(), value)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -668,7 +669,7 @@ func Test_Store_SearchContains_Rot13Transformer(t *testing.T) {
 
 	}
 
-	refsFound, errFind := store.Search("st02", SEARCH_TYPE_CONTAINS)
+	refsFound, errFind := store.Search(context.Background(), "st02", SEARCH_TYPE_CONTAINS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -736,7 +737,7 @@ func Test_Store_SearchContains_Sha256Transformer(t *testing.T) {
 			SetSourceReferenceID(v.RefID).
 			SetSearchValue(v.SearchValue)
 
-		err = store.SearchValueCreate(value)
+		err = store.SearchValueCreate(context.Background(), value)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -745,7 +746,7 @@ func Test_Store_SearchContains_Sha256Transformer(t *testing.T) {
 
 	}
 
-	refsFound, errFind := store.Search("st02", SEARCH_TYPE_CONTAINS)
+	refsFound, errFind := store.Search(context.Background(), "st02", SEARCH_TYPE_CONTAINS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -757,7 +758,7 @@ func Test_Store_SearchContains_Sha256Transformer(t *testing.T) {
 		return
 	}
 
-	refsFound2, errFind := store.Search("test022@test.com", SEARCH_TYPE_EQUALS)
+	refsFound2, errFind := store.Search(context.Background(), "test022@test.com", SEARCH_TYPE_EQUALS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
@@ -820,7 +821,7 @@ func Test_Store_SearchContains_UniTransformer(t *testing.T) {
 			SetSourceReferenceID(v.RefID).
 			SetSearchValue(v.SearchValue)
 
-		err = store.SearchValueCreate(value)
+		err = store.SearchValueCreate(context.Background(), value)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -829,7 +830,7 @@ func Test_Store_SearchContains_UniTransformer(t *testing.T) {
 
 	}
 
-	refsFound, errFind := store.Search("st02", SEARCH_TYPE_CONTAINS)
+	refsFound, errFind := store.Search(context.Background(), "st02", SEARCH_TYPE_CONTAINS)
 
 	if errFind != nil {
 		t.Fatal("unexpected error:", errFind)
