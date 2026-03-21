@@ -28,13 +28,16 @@ type storeImplementation struct {
 
 // AutoMigrate auto migrate
 func (st *storeImplementation) AutoMigrate() error {
-	sqlStr := st.sqlTableCreate()
+	sqlStr, err := st.sqlTableCreate()
+	if err != nil {
+		return err
+	}
 
 	if st.debugEnabled {
 		log.Println(sqlStr)
 	}
 
-	_, err := st.db.Exec(sqlStr)
+	_, err = st.db.Exec(sqlStr)
 
 	if err != nil {
 		log.Println(err)

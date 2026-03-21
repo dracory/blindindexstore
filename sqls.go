@@ -2,8 +2,8 @@ package blindindexstore
 
 import "github.com/dracory/sb"
 
-func (store *storeImplementation) sqlTableCreate() string {
-	sql := sb.NewBuilder(sb.DatabaseDriverName(store.db)).
+func (store *storeImplementation) sqlTableCreate() (string, error) {
+	return sb.NewBuilder(sb.DatabaseDriverName(store.db)).
 		Table(store.tableName).
 		Column(sb.Column{
 			Name:       COLUMN_ID,
@@ -33,6 +33,4 @@ func (store *storeImplementation) sqlTableCreate() string {
 			Type: sb.COLUMN_TYPE_DATETIME,
 		}).
 		CreateIfNotExists()
-
-	return sql
 }

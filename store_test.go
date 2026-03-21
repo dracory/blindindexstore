@@ -278,10 +278,6 @@ func Test_Store_SearchValueDelete(t *testing.T) {
 		t.Fatal("unexpected nil store")
 	}
 
-	if err != nil {
-		t.Fatal("Test_Store_ValueDelete: Expected [err] to be nil received [" + err.Error() + "]")
-	}
-
 	value := NewSearchValue().
 		SetSourceReferenceID("RefId01").
 		SetSearchValue("SearchValue01")
@@ -342,10 +338,6 @@ func Test_Store_SearchValueSoftDelete(t *testing.T) {
 
 	if store == nil {
 		t.Fatal("unexpected nil store")
-	}
-
-	if err != nil {
-		t.Fatal("Test_Store_ValueDelete: Expected [err] to be nil received [" + err.Error() + "]")
 	}
 
 	value := NewSearchValue().
