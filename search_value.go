@@ -189,3 +189,7 @@ func (o *searchValueImplementation) DeleteMeta(key string) (SearchValueInterface
 	delete(metas, key)
 	return o.SetMetas(metas)
 }
+
+func (o *searchValueImplementation) MarkAsNotDirty() {
+	o.DataObject.MarkAsNotDirty()
+}
