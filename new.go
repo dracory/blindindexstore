@@ -1,6 +1,7 @@
 package blindindexstore
 
 import (
+	"context"
 	"errors"
 
 	"github.com/dracory/sb"
@@ -34,7 +35,7 @@ func NewStore(opts NewStoreOptions) (StoreInterface, error) {
 	}
 
 	if store.automigrateEnabled {
-		err := store.MigrateUp()
+		err := store.MigrateUp(context.Background())
 
 		if err != nil {
 			return nil, err

@@ -12,9 +12,9 @@ type StoreInterface interface {
 	SetTableName(tableName string)
 
 	// MigrateDown drops the table
-	MigrateDown(tx ...*sql.Tx) error
+	MigrateDown(ctx context.Context, tx ...*sql.Tx) error
 	// MigrateUp creates the table
-	MigrateUp(tx ...*sql.Tx) error
+	MigrateUp(ctx context.Context, tx ...*sql.Tx) error
 
 	Search(ctx context.Context, needle, searchType string) (refIDs []string, err error)
 	SearchValueCreate(ctx context.Context, value SearchValueInterface) error
