@@ -1,9 +1,20 @@
 package blindindexstore
 
-import "context"
+import (
+	"context"
+	"database/sql"
+)
 
 type StoreInterface interface {
-	AutoMigrate() error
+	// GetTableName returns the table name
+	GetTableName() string
+	// SetTableName sets the table name
+	SetTableName(tableName string)
+
+	// MigrateDown drops the table
+	MigrateDown(tx ...*sql.Tx) error
+	// MigrateUp creates the table
+	MigrateUp(tx ...*sql.Tx) error
 
 	Search(ctx context.Context, needle, searchType string) (refIDs []string, err error)
 	SearchValueCreate(ctx context.Context, value SearchValueInterface) error

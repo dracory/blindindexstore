@@ -110,7 +110,7 @@ func Test_Store_WithAutoMigrate(t *testing.T) {
 		t.Fatalf("automigrateEnabled: Expected [true] received [%v]", storeAutomigrateTrue.IsAutomigrateEnabled())
 	}
 
-	if err := storeAutomigrateTrue.AutoMigrate(); err != nil {
+	if err := storeAutomigrateTrue.MigrateUp(); err != nil {
 		t.Fatalf("unexpected automigrate error: %v", err)
 	}
 }

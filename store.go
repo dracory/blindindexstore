@@ -26,8 +26,18 @@ type storeImplementation struct {
 	transformer        TransformerInterface
 }
 
-// AutoMigrate auto migrate
+// AutoMigrate auto migrate (deprecated - use MigrateUp)
 func (st *storeImplementation) AutoMigrate() error {
+	return st.MigrateUp()
+}
+
+// MigrateUp creates the table
+func (st *storeImplementation) MigrateUp(tx ...*sql.Tx) error {
+	var txToUse *sql.Tx
+	if len(tx) > 0 {
+		txToUse = tx[0]
+	}
+
 	sqlStr, err := st.sqlTableCreate()
 	if err != nil {
 		return err
@@ -37,11 +47,47 @@ func (st *storeImplementation) AutoMigrate() error {
 		log.Println(sqlStr)
 	}
 
-	_, err = st.db.Exec(sqlStr)
+	var errExec error
+	if txToUse != nil {
+		_, errExec = txToUse.Exec(sqlStr)
+	} else {
+		_, errExec = st.db.Exec(sqlStr)
+	}
 
+	if errExec != nil {
+		log.Println(errExec)
+		return errExec
+	}
+
+	return nil
+}
+
+// MigrateDown drops the table
+func (st *storeImplementation) MigrateDown(tx ...*sql.Tx) error {
+	var txToUse *sql.Tx
+	if len(tx) > 0 {
+		txToUse = tx[0]
+	}
+
+	sqlStr, err := st.sqlTableDrop()
 	if err != nil {
-		log.Println(err)
 		return err
+	}
+
+	if st.debugEnabled {
+		log.Println(sqlStr)
+	}
+
+	var errExec error
+	if txToUse != nil {
+		_, errExec = txToUse.Exec(sqlStr)
+	} else {
+		_, errExec = st.db.Exec(sqlStr)
+	}
+
+	if errExec != nil {
+		log.Println(errExec)
+		return errExec
 	}
 
 	return nil
@@ -50,6 +96,16 @@ func (st *storeImplementation) AutoMigrate() error {
 // EnableDebug - enables the debug option
 func (st *storeImplementation) EnableDebug(debug bool) {
 	st.debugEnabled = debug
+}
+
+// GetTableName returns the table name
+func (st *storeImplementation) GetTableName() string {
+	return st.tableName
+}
+
+// SetTableName sets the table name
+func (st *storeImplementation) SetTableName(tableName string) {
+	st.tableName = tableName
 }
 
 func (store *storeImplementation) Search(ctx context.Context, needle, searchType string) (refIDs []string, err error) {
