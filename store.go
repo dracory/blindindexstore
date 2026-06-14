@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -14,16 +13,6 @@ import (
 	contractsschema "github.com/dracory/neat/contracts/database/schema"
 	"github.com/dromara/carbon/v2"
 )
-
-// isHashValue checks if a string appears to be a hash (hex string of typical hash length)
-func isHashValue(value string) bool {
-	// SHA256 hashes are 64 hex characters
-	if len(value) == 64 {
-		matched, _ := regexp.MatchString("^[0-9a-fA-F]{64}$", value)
-		return matched
-	}
-	return false
-}
 
 // == INTERFACE ===============================================================
 
@@ -328,14 +317,19 @@ func (store *storeImplementation) SearchValueUpdate(ctx context.Context, searchV
 	}
 
 	if searchValue.SearchValue() != "" {
-		// Only transform if the value appears to be untransformed (not a hash)
-		// This prevents double transformation when updating without changing the value
-		transformedValue := searchValue.SearchValue()
-		if !isHashValue(transformedValue) {
-			transformedValue = store.transformer.Transform(searchValue.SearchValue())
-			searchValue.SetSearchValue(transformedValue)
+		// Only transform if the value appears to be plain text (not already hashed)
+		// SHA256 produces 64-character hex strings
+		currentValue := searchValue.SearchValue()
+		var transformedValue string
+		if len(currentValue) == 64 && isHex(currentValue) {
+			// Value appears to be already hashed, use as-is
+			transformedValue = currentValue
+		} else {
+			// Value appears to be plain text, transform it
+			transformedValue = store.transformer.Transform(currentValue)
 		}
 		row[COLUMN_SEARCH_VALUE] = transformedValue
+		searchValue.SetSearchValue(transformedValue)
 	}
 
 	if searchValue.SoftDeletedAt() != "" {
