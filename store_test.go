@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dracory/sb"
 	_ "modernc.org/sqlite"
 )
 
@@ -254,7 +253,7 @@ func Test_Store_SearchValueFindByID(t *testing.T) {
 		t.Fatal("Search value MUST BE 'ef46c0effb3e3a6d65fbbd46c039008205e67b8089339db1852ca0992804afb9', found: ", valueFound.SearchValue())
 	}
 
-	if !strings.Contains(valueFound.SoftDeletedAt(), sb.MAX_DATE) {
+	if !strings.Contains(valueFound.SoftDeletedAt(), MAX_DATETIME) {
 		t.Fatal("Search value MUST NOT be soft deleted", valueFound.SoftDeletedAt())
 		return
 	}
@@ -421,7 +420,7 @@ func Test_Store_SearchValueSoftDeleteByID(t *testing.T) {
 		t.Fatalf("expected exactly one value with soft deleted included")
 	}
 
-	if values[0].SoftDeletedAt() == sb.MAX_DATETIME {
+	if values[0].SoftDeletedAt() == MAX_DATETIME {
 		t.Fatalf("expected value to be soft deleted")
 	}
 }

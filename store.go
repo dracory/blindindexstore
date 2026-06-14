@@ -6,12 +6,12 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
-	"github.com/doug-martin/goqu/v9"
-
-	"github.com/dracory/database"
+	"github.com/dracory/neat"
+	contractsorm "github.com/dracory/neat/contracts/database/orm"
+	contractsschema "github.com/dracory/neat/contracts/database/schema"
 	"github.com/dromara/carbon/v2"
-	"github.com/samber/lo"
 )
 
 var _ StoreInterface = (*storeImplementation)(nil) // verify it extends the interface
@@ -19,8 +19,7 @@ var _ StoreInterface = (*storeImplementation)(nil) // verify it extends the inte
 // storeImplementation implements StoreInterface
 type storeImplementation struct {
 	tableName          string
-	db                 *sql.DB
-	dbDriverName       string
+	db                 *neat.Database
 	automigrateEnabled bool
 	debugEnabled       bool
 	transformer        TransformerInterface
@@ -33,30 +32,28 @@ func (st *storeImplementation) AutoMigrate() error {
 
 // MigrateUp creates the table
 func (st *storeImplementation) MigrateUp(ctx context.Context, tx ...*sql.Tx) error {
-	var txToUse *sql.Tx
-	if len(tx) > 0 {
-		txToUse = tx[0]
+	if st.db.Schema().HasTable(st.tableName) {
+		if st.debugEnabled {
+			log.Println("MigrateUp: table already exists", "table", st.tableName)
+		}
+		return nil
 	}
 
-	sqlStr, err := st.sqlTableCreate()
+	err := st.db.Schema().Create(st.tableName, func(table contractsschema.Blueprint) {
+		table.String(COLUMN_ID, 40)
+		table.Primary(COLUMN_ID)
+		table.String(COLUMN_SOURCE_REFERENCE_ID, 40)
+		table.Text(COLUMN_SEARCH_VALUE)
+		table.DateTime(COLUMN_CREATED_AT)
+		table.DateTime(COLUMN_UPDATED_AT)
+		table.DateTime(COLUMN_SOFT_DELETED_AT)
+	})
+
 	if err != nil {
+		if st.debugEnabled {
+			log.Println("MigrateUp failed", "error", err)
+		}
 		return err
-	}
-
-	if st.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	var errExec error
-	if txToUse != nil {
-		_, errExec = txToUse.ExecContext(ctx, sqlStr)
-	} else {
-		_, errExec = st.db.ExecContext(ctx, sqlStr)
-	}
-
-	if errExec != nil {
-		log.Println(errExec)
-		return errExec
 	}
 
 	return nil
@@ -64,38 +61,31 @@ func (st *storeImplementation) MigrateUp(ctx context.Context, tx ...*sql.Tx) err
 
 // MigrateDown drops the table
 func (st *storeImplementation) MigrateDown(ctx context.Context, tx ...*sql.Tx) error {
-	var txToUse *sql.Tx
-	if len(tx) > 0 {
-		txToUse = tx[0]
+	if !st.db.Schema().HasTable(st.tableName) {
+		if st.debugEnabled {
+			log.Println("MigrateDown: table does not exist", "table", st.tableName)
+		}
+		return nil
 	}
 
-	sqlStr, err := st.sqlTableDrop()
+	err := st.db.Schema().Drop(st.tableName)
 	if err != nil {
+		if st.debugEnabled {
+			log.Println("MigrateDown failed", "error", err)
+		}
 		return err
 	}
-
-	if st.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	var errExec error
-	if txToUse != nil {
-		_, errExec = txToUse.ExecContext(ctx, sqlStr)
-	} else {
-		_, errExec = st.db.ExecContext(ctx, sqlStr)
-	}
-
-	if errExec != nil {
-		log.Println(errExec)
-		return errExec
-	}
-
 	return nil
 }
 
 // EnableDebug - enables the debug option
 func (st *storeImplementation) EnableDebug(debug bool) {
 	st.debugEnabled = debug
+	if debug {
+		st.db.EnableDebug()
+	} else {
+		st.db.DisableDebug()
+	}
 }
 
 // GetTableName returns the table name
@@ -113,33 +103,22 @@ func (store *storeImplementation) Search(ctx context.Context, needle, searchType
 		SetSearchValue(needle).
 		SetSearchType(searchType)
 
-	// Build the select dataset
-	ds, _, err := query.ToSelectDataset(store)
-	if err != nil {
-		return nil, err
+	q := store.buildQuery(query)
+
+	type searchValueRow struct {
+		ID                string `db:"id"`
+		SourceReferenceID string `db:"source_reference_id"`
 	}
 
-	// Generate SQL and parameters
-	sqlStr, sqlParams, err := ds.ToSQL()
-	if err != nil {
-		return nil, err
-	}
-
-	if store.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	modelMaps, err := database.SelectToMapString(database.NewQueryableContext(ctx, store.db), sqlStr, sqlParams...)
-	if err != nil {
-		return refIDs, err
+	var rows []searchValueRow
+	if err := q.Table(store.tableName).Get(&rows); err != nil {
+		return []string{}, err
 	}
 
 	list := []string{}
-
-	lo.ForEach(modelMaps, func(modelMap map[string]string, index int) {
-		model := NewSearchValueFromExistingData(modelMap)
-		list = append(list, model.SourceReferenceID())
-	})
+	for _, r := range rows {
+		list = append(list, r.SourceReferenceID)
+	}
 
 	return list, nil
 }
@@ -151,24 +130,16 @@ func (store *storeImplementation) SearchValueCreate(ctx context.Context, searchV
 	searchValue.SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
 	searchValue.SetSearchValue(store.transformer.Transform(searchValue.SearchValue()))
 
-	data := searchValue.Data()
-
-	sqlStr, params, errSql := goqu.Dialect(store.dbDriverName).
-		Insert(store.tableName).
-		Prepared(true).
-		Rows(data).
-		ToSQL()
-
-	if errSql != nil {
-		return errSql
+	row := map[string]any{
+		COLUMN_ID:                  searchValue.ID(),
+		COLUMN_SOURCE_REFERENCE_ID: searchValue.SourceReferenceID(),
+		COLUMN_SEARCH_VALUE:        searchValue.SearchValue(),
+		COLUMN_CREATED_AT:          searchValue.CreatedAtCarbon().StdTime(),
+		COLUMN_UPDATED_AT:          searchValue.UpdatedAtCarbon().StdTime(),
+		COLUMN_SOFT_DELETED_AT:     searchValue.SoftDeletedAtCarbon().StdTime(),
 	}
 
-	if store.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	_, err := store.db.ExecContext(ctx, sqlStr, params...)
-
+	err := store.db.Query().Table(store.tableName).Create(row)
 	if err != nil {
 		return err
 	}
@@ -191,22 +162,10 @@ func (store *storeImplementation) SearchValueDeleteByID(ctx context.Context, id 
 		return errors.New("searchValue id is empty")
 	}
 
-	sqlStr, params, errSql := goqu.Dialect(store.dbDriverName).
-		Delete(store.tableName).
-		Prepared(true).
-		Where(goqu.C(COLUMN_ID).Eq(id)).
-		ToSQL()
-
-	if errSql != nil {
-		return errSql
-	}
-
-	if store.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	_, err := store.db.ExecContext(ctx, sqlStr, params...)
-
+	_, err := store.db.Query().
+		Table(store.tableName).
+		Where(COLUMN_ID+" = ?", id).
+		Delete()
 	return err
 }
 
@@ -251,33 +210,37 @@ func (store *storeImplementation) SearchValueFindBySourceReferenceID(ctx context
 }
 
 func (store *storeImplementation) SearchValueList(ctx context.Context, query SearchValueQueryInterface) ([]SearchValueInterface, error) {
-	// Build the select dataset
-	ds, _, err := query.ToSelectDataset(store)
-	if err != nil {
-		return nil, err
+	q := store.buildQuery(query)
+
+	type searchValueRow struct {
+		ID                string     `db:"id"`
+		SourceReferenceID string     `db:"source_reference_id"`
+		SearchValue       string     `db:"search_value"`
+		CreatedAt         time.Time  `db:"created_at"`
+		UpdatedAt         time.Time  `db:"updated_at"`
+		SoftDeletedAt     *time.Time `db:"soft_deleted_at"`
 	}
 
-	// Generate SQL and parameters
-	sqlStr, sqlParams, err := ds.ToSQL()
-	if err != nil {
-		return nil, err
-	}
-
-	if store.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	modelMaps, err := database.SelectToMapString(database.NewQueryableContext(ctx, store.db), sqlStr, sqlParams...)
-	if err != nil {
+	var rows []searchValueRow
+	if err := q.Table(store.tableName).Get(&rows); err != nil {
 		return []SearchValueInterface{}, err
 	}
 
 	list := []SearchValueInterface{}
-
-	lo.ForEach(modelMaps, func(modelMap map[string]string, index int) {
-		model := NewSearchValueFromExistingData(modelMap)
-		list = append(list, model)
-	})
+	for _, r := range rows {
+		s := NewSearchValue()
+		s.SetID(r.ID)
+		s.SetSourceReferenceID(r.SourceReferenceID)
+		s.SetSearchValue(r.SearchValue)
+		s.SetCreatedAt(carbon.CreateFromStdTime(r.CreatedAt).ToDateTimeString())
+		s.SetUpdatedAt(carbon.CreateFromStdTime(r.UpdatedAt).ToDateTimeString())
+		if r.SoftDeletedAt != nil {
+			s.SetSoftDeletedAt(carbon.CreateFromStdTime(*r.SoftDeletedAt).ToDateTimeString())
+		} else {
+			s.SetSoftDeletedAt(MAX_DATETIME)
+		}
+		list = append(list, s)
+	}
 
 	return list, nil
 }
@@ -311,37 +274,26 @@ func (store *storeImplementation) SearchValueUpdate(ctx context.Context, searchV
 
 	searchValue.SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString())
 
-	dataChanged := searchValue.DataChanged()
-
-	delete(dataChanged, "id")   // ID is not updateable
-	delete(dataChanged, "hash") // Hash is not updateable
-	delete(dataChanged, "data") // Data is not updateable
-
-	if len(dataChanged) < 2 {
-		return nil
+	row := map[string]any{
+		COLUMN_UPDATED_AT: searchValue.UpdatedAtCarbon().StdTime(),
 	}
 
-	if lo.HasKey(dataChanged, COLUMN_SEARCH_VALUE) {
-		searchValue.SetSearchValue(store.transformer.Transform(searchValue.SearchValue()))
-		dataChanged[COLUMN_SEARCH_VALUE] = searchValue.SearchValue()
+	if searchValue.SourceReferenceID() != "" {
+		row[COLUMN_SOURCE_REFERENCE_ID] = searchValue.SourceReferenceID()
 	}
 
-	sqlStr, params, errSql := goqu.Dialect(store.dbDriverName).
-		Update(store.tableName).
-		Prepared(true).
-		Set(dataChanged).
-		Where(goqu.C("id").Eq(searchValue.ID())).
-		ToSQL()
-
-	if errSql != nil {
-		return errSql
+	if searchValue.SearchValue() != "" {
+		row[COLUMN_SEARCH_VALUE] = store.transformer.Transform(searchValue.SearchValue())
 	}
 
-	if store.debugEnabled {
-		log.Println(sqlStr)
+	if searchValue.SoftDeletedAt() != "" {
+		row[COLUMN_SOFT_DELETED_AT] = searchValue.SoftDeletedAtCarbon().StdTime()
 	}
 
-	_, err := store.db.ExecContext(ctx, sqlStr, params...)
+	_, err := store.db.Query().
+		Table(store.tableName).
+		Where(COLUMN_ID+" = ?", searchValue.ID()).
+		Update(row)
 
 	searchValue.MarkAsNotDirty()
 
@@ -354,81 +306,80 @@ func (st *storeImplementation) IsAutomigrateEnabled() bool {
 }
 
 func (store *storeImplementation) Truncate(ctx context.Context) error {
-	var (
-		sqlStr string
-		errSql error
-	)
-
-	if strings.EqualFold(store.dbDriverName, "sqlite") {
-		sqlStr, _, errSql = goqu.Dialect(store.dbDriverName).
-			Delete(store.tableName).
-			Prepared(true).
-			ToSQL()
-	} else {
-		sqlStr, _, errSql = goqu.Dialect(store.dbDriverName).
-			Truncate(store.tableName).
-			ToSQL()
-	}
-
-	if errSql != nil {
-		return errSql
-	}
-
-	if store.debugEnabled {
-		log.Println(sqlStr)
-	}
-
-	_, err := store.db.ExecContext(ctx, sqlStr)
-
+	_, err := store.db.Query().
+		Table(store.tableName).
+		Delete()
 	return err
 }
 
-// 	}
+// buildQuery builds a neat query from the search value query interface.
+func (st *storeImplementation) buildQuery(query SearchValueQueryInterface) contractsorm.Query {
+	q := st.db.Query()
 
-// 	if options.SourceReferenceID != "" {
-// 		q = q.Where(goqu.C(COLUMN_SOURCE_REFERENCE_ID).Eq(options.SourceReferenceID))
-// 	}
+	if query == nil {
+		return q
+	}
 
-// 	if options.SearchValue != "" {
-// 		options.SearchValue = store.transformer.Transform(options.SearchValue)
-// 		if options.SearchType == SEARCH_TYPE_CONTAINS {
-// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + options.SearchValue + "%"))
-// 		} else if options.SearchType == SEARCH_TYPE_STARTS_WITH {
-// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
-// 		} else if options.SearchType == SEARCH_TYPE_ENDS_WITH {
-// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(options.SearchValue + "%"))
-// 		} else {
-// 			// default to strict search
-// 			q = q.Where(goqu.C(COLUMN_SEARCH_VALUE).Eq(options.SearchValue))
-// 		}
-// 	}
+	if query.HasID() && query.ID() != "" {
+		q = q.Where(COLUMN_ID+" = ?", query.ID())
+	}
 
-// 	if !options.CountOnly {
-// 		if options.Limit > 0 {
-// 			q = q.Limit(uint(options.Limit))
-// 		}
+	if query.HasIDIn() && len(query.IDIn()) > 0 {
+		q = q.Where(COLUMN_ID+" IN (?)", query.IDIn())
+	}
 
-// 		if options.Offset > 0 {
-// 			q = q.Offset(uint(options.Offset))
-// 		}
-// 	}
+	if query.HasSourceReferenceID() && query.SourceReferenceID() != "" {
+		q = q.Where(COLUMN_SOURCE_REFERENCE_ID+" = ?", query.SourceReferenceID())
+	}
 
-// 	sortOrder := sb.DESC
-// 	if options.SortOrder != "" {
-// 		sortOrder = options.SortOrder
-// 	}
+	if query.HasSearchValue() && query.SearchValue() != "" {
+		searchValue := st.transformer.Transform(query.SearchValue())
+		searchType := query.SearchType()
+		if !query.HasSearchType() || searchType == "" {
+			searchType = SEARCH_TYPE_EQUALS
+		}
 
-// 	if options.OrderBy != "" {
-// 		if strings.EqualFold(sortOrder, sb.ASC) {
-// 			q = q.Order(goqu.I(options.OrderBy).Asc())
-// 		} else {
-// 			q = q.Order(goqu.I(options.OrderBy).Desc())
-// 		}
-// 	}
+		switch searchType {
+		case SEARCH_TYPE_CONTAINS:
+			q = q.Where(COLUMN_SEARCH_VALUE+" LIKE ?", "%"+searchValue+"%")
+		case SEARCH_TYPE_STARTS_WITH:
+			q = q.Where(COLUMN_SEARCH_VALUE+" LIKE ?", searchValue+"%")
+		case SEARCH_TYPE_ENDS_WITH:
+			q = q.Where(COLUMN_SEARCH_VALUE+" LIKE ?", "%"+searchValue)
+		default:
+			q = q.Where(COLUMN_SEARCH_VALUE+" = ?", searchValue)
+		}
+	}
 
-// 	if !options.WithSoftDeleted {
-// 		q = q.Where(goqu.C(COLUMN_SOFT_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
-// 	}
+	if query.HasLimit() && query.Limit() > 0 {
+		q = q.Limit(query.Limit())
+	}
 
-// 	return q
-// }
+	if query.HasOffset() && query.Offset() > 0 {
+		q = q.Offset(query.Offset())
+	}
+
+	if query.HasOrderBy() && query.OrderBy() != "" {
+		orderDirection := query.OrderDirection()
+		if !query.HasOrderDirection() || orderDirection == "" {
+			orderDirection = "DESC"
+		}
+		if strings.EqualFold(orderDirection, "ASC") {
+			q = q.OrderBy(query.OrderBy() + " ASC")
+		} else {
+			q = q.OrderBy(query.OrderBy() + " DESC")
+		}
+	} else {
+		q = q.OrderBy(COLUMN_CREATED_AT + " DESC")
+	}
+
+	// Handle soft delete filtering
+	if query.HasWithSoftDeleted() && query.WithSoftDeleted() {
+		q = q.WithSoftDeleted()
+	} else {
+		// By default, filter out soft-deleted records
+		q = q.Where(COLUMN_SOFT_DELETED_AT+" > ?", carbon.Now(carbon.UTC).StdTime())
+	}
+
+	return q
+}

@@ -3,10 +3,6 @@ package blindindexstore
 import (
 	"errors"
 	"strings"
-
-	"github.com/doug-martin/goqu/v9"
-	"github.com/dracory/sb"
-	"github.com/dromara/carbon/v2"
 )
 
 func SearchValueQuery() SearchValueQueryInterface {
@@ -274,102 +270,10 @@ func (o *searchValueQueryImplementation) Validate() error {
 			return errors.New("order_direction requires order_by to be set")
 		}
 
-		if !strings.EqualFold(o.orderDirection, sb.ASC) && !strings.EqualFold(o.orderDirection, sb.DESC) {
+		if !strings.EqualFold(o.orderDirection, "ASC") && !strings.EqualFold(o.orderDirection, "DESC") {
 			return errors.New("order_direction must be asc or desc")
 		}
 	}
 
 	return nil
-}
-
-func (o *searchValueQueryImplementation) ToSelectDataset(store StoreInterface) (*goqu.SelectDataset, []any, error) {
-	if err := o.Validate(); err != nil {
-		return nil, nil, err
-	}
-
-	impl, ok := store.(*storeImplementation)
-	if !ok {
-		return nil, nil, errors.New("store must be a *storeImplementation")
-	}
-
-	dataset := goqu.Dialect(impl.dbDriverName).From(impl.tableName)
-
-	if !o.HasOrderBy() || o.OrderBy() == "" {
-		o.SetOrderBy(COLUMN_CREATED_AT)
-	}
-
-	if o.HasID() {
-		dataset = dataset.Where(goqu.C(COLUMN_ID).Eq(o.ID()))
-	}
-
-	if o.HasIDIn() {
-		dataset = dataset.Where(goqu.C(COLUMN_ID).In(o.IDIn()))
-	}
-
-	if o.HasSourceReferenceID() {
-		dataset = dataset.Where(goqu.C(COLUMN_SOURCE_REFERENCE_ID).Eq(o.SourceReferenceID()))
-	}
-
-	if o.HasSearchValue() {
-		searchValue := o.SearchValue()
-		if impl.transformer != nil {
-			searchValue = impl.transformer.Transform(searchValue)
-		}
-
-		searchType := o.SearchType()
-		if !o.HasSearchType() || searchType == "" {
-			searchType = SEARCH_TYPE_EQUALS
-		}
-
-		switch {
-		case strings.EqualFold(searchType, SEARCH_TYPE_CONTAINS):
-			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + searchValue + "%"))
-		case strings.EqualFold(searchType, SEARCH_TYPE_STARTS_WITH):
-			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Like(searchValue + "%"))
-		case strings.EqualFold(searchType, SEARCH_TYPE_ENDS_WITH):
-			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Like("%" + searchValue))
-		default:
-			dataset = dataset.Where(goqu.C(COLUMN_SEARCH_VALUE).Eq(searchValue))
-		}
-	}
-
-	countOnly := o.CountOnly()
-	if !o.HasCountOnly() {
-		countOnly = false
-	}
-
-	if !countOnly {
-		if o.HasLimit() && o.Limit() > 0 {
-			dataset = dataset.Limit(uint(o.Limit()))
-		}
-
-		if o.HasOffset() && o.Offset() > 0 {
-			dataset = dataset.Offset(uint(o.Offset()))
-		}
-	}
-
-	sortOrder := o.OrderDirection()
-	if !o.HasOrderDirection() || sortOrder == "" {
-		sortOrder = sb.DESC
-	}
-
-	if o.HasOrderBy() {
-		if strings.EqualFold(sortOrder, sb.ASC) {
-			dataset = dataset.Order(goqu.I(o.OrderBy()).Asc())
-		} else {
-			dataset = dataset.Order(goqu.I(o.OrderBy()).Desc())
-		}
-	}
-
-	includeSoftDeleted := o.HasWithSoftDeleted() && o.WithSoftDeleted()
-	if !includeSoftDeleted {
-		dataset = dataset.Where(goqu.C(COLUMN_SOFT_DELETED_AT).Gt(carbon.Now(carbon.UTC).ToDateTimeString()))
-	}
-
-	columns := o.Columns()
-	if !o.HasColumns() || len(columns) == 0 {
-		columns = []any{"*"}
-	}
-
-	return dataset, columns, nil
 }

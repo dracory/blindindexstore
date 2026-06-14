@@ -1,11 +1,6 @@
 package blindindexstore
 
-import (
-	"github.com/doug-martin/goqu/v9"
-)
-
 type SearchValueQueryInterface interface {
-	ToSelectDataset(store StoreInterface) (*goqu.SelectDataset, []any, error)
 	Validate() error
 
 	ID() string

@@ -2,8 +2,6 @@ package blindindexstore
 
 import (
 	"testing"
-
-	"github.com/dracory/sb"
 )
 
 func TestNewSearchValueDefaults(t *testing.T) {
@@ -25,8 +23,8 @@ func TestNewSearchValueDefaults(t *testing.T) {
 		t.Fatalf("expected empty search value, got %q", value.SearchValue())
 	}
 
-	if value.SoftDeletedAt() != sb.MAX_DATETIME {
-		t.Fatalf("expected soft deleted at to equal sb.MAX_DATETIME, got %q", value.SoftDeletedAt())
+	if value.SoftDeletedAt() != MAX_DATETIME {
+		t.Fatalf("expected soft deleted at to equal MAX_DATETIME, got %q", value.SoftDeletedAt())
 	}
 
 	if value.CreatedAt() == "" {
@@ -40,13 +38,13 @@ func TestNewSearchValueDefaults(t *testing.T) {
 
 func TestNewSearchValueFromExistingData(t *testing.T) {
 	data := map[string]string{
-		COLUMN_ID:                 "test-id",
+		COLUMN_ID:                  "test-id",
 		COLUMN_SOURCE_REFERENCE_ID: "source-1",
-		COLUMN_SEARCH_VALUE:       "plain-value",
-		COLUMN_SOFT_DELETED_AT:    "2099-01-01 00:00:00",
-		COLUMN_CREATED_AT:         "2023-01-01 01:02:03",
-		COLUMN_UPDATED_AT:         "2023-01-02 04:05:06",
-		COLUMN_METAS:              `{"foo":"bar"}`,
+		COLUMN_SEARCH_VALUE:        "plain-value",
+		COLUMN_SOFT_DELETED_AT:     "2099-01-01 00:00:00",
+		COLUMN_CREATED_AT:          "2023-01-01 01:02:03",
+		COLUMN_UPDATED_AT:          "2023-01-02 04:05:06",
+		COLUMN_METAS:               `{"foo":"bar"}`,
 	}
 
 	value := NewSearchValueFromExistingData(data)

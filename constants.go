@@ -12,3 +12,5 @@ const SEARCH_TYPE_EQUALS = "equals"
 const SEARCH_TYPE_CONTAINS = "contains"
 const SEARCH_TYPE_STARTS_WITH = "starts_with"
 const SEARCH_TYPE_ENDS_WITH = "ends_with"
+
+const MAX_DATETIME = "9999-12-31 23:59:59"

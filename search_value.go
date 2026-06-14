@@ -1,18 +1,27 @@
 package blindindexstore
 
 import (
+	"database/sql"
 	"encoding/json"
+	"time"
 
-	"github.com/dracory/dataobject"
-	"github.com/dracory/sb"
-	"github.com/dracory/uid"
+	"github.com/dracory/neat/database/orm"
+	neatuid "github.com/dracory/neat/support/uid"
 	"github.com/dromara/carbon/v2"
 )
 
 // == CLASS ==================================================================
 
 type searchValueImplementation struct {
-	dataobject.DataObject
+	orm.ShortID
+
+	SourceReferenceIDField string    `db:"source_reference_id"`
+	SearchValueField       string    `db:"search_value"`
+	MetasField             string    `db:"metas"`
+	CreatedAtField         time.Time `db:"created_at"`
+	UpdatedAtField         time.Time `db:"updated_at"`
+	orm.SoftDeletes
+	DeletedAt sql.NullTime `db:"soft_deleted_at"`
 }
 
 var _ SearchValueInterface = (*searchValueImplementation)(nil) // verify it extends the interface
@@ -20,20 +29,33 @@ var _ SearchValueInterface = (*searchValueImplementation)(nil) // verify it exte
 // == CONSTRUCTORS ===========================================================
 
 func NewSearchValue() SearchValueInterface {
-	d := (&searchValueImplementation{}).
-		SetID(uid.HumanUid()).
-		SetSourceReferenceID("").
-		SetSearchValue("").
-		SetCreatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC)).
-		SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC)).
-		SetSoftDeletedAt(sb.MAX_DATETIME)
-
-	return d
+	o := &searchValueImplementation{}
+	o.SetID(neatuid.GenerateShortID())
+	o.SetSourceReferenceID("")
+	o.SetSearchValue("")
+	o.SetCreatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
+	o.SetUpdatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
+	o.SetSoftDeletedAt(MAX_DATETIME)
+	return o
 }
 
 func NewSearchValueFromExistingData(data map[string]string) SearchValueInterface {
 	o := &searchValueImplementation{}
-	o.Hydrate(data)
+	o.SetID(data[COLUMN_ID])
+	o.SetSourceReferenceID(data[COLUMN_SOURCE_REFERENCE_ID])
+	o.SetSearchValue(data[COLUMN_SEARCH_VALUE])
+	if v, ok := data[COLUMN_METAS]; ok {
+		o.MetasField = v
+	}
+	if v, ok := data[COLUMN_CREATED_AT]; ok {
+		o.SetCreatedAt(v)
+	}
+	if v, ok := data[COLUMN_UPDATED_AT]; ok {
+		o.SetUpdatedAt(v)
+	}
+	if v, ok := data[COLUMN_SOFT_DELETED_AT]; ok {
+		o.SetSoftDeletedAt(v)
+	}
 	return o
 }
 
@@ -41,78 +63,98 @@ func NewSearchValueFromExistingData(data map[string]string) SearchValueInterface
 
 // == SETTERS AND GETTERS ====================================================
 func (d *searchValueImplementation) CreatedAt() string {
-	return d.Get(COLUMN_CREATED_AT)
+	if d.CreatedAtField.IsZero() {
+		return ""
+	}
+	return carbon.CreateFromStdTime(d.CreatedAtField).ToDateTimeString()
 }
 
 func (d *searchValueImplementation) CreatedAtCarbon() *carbon.Carbon {
-	createdAt := d.CreatedAt()
-	return carbon.Parse(createdAt)
+	return carbon.CreateFromStdTime(d.CreatedAtField)
 }
 
 func (d *searchValueImplementation) SetCreatedAt(createdAt string) SearchValueInterface {
-	d.Set(COLUMN_CREATED_AT, createdAt)
+	if createdAt == "" {
+		return d
+	}
+	d.CreatedAtField = carbon.Parse(createdAt, carbon.UTC).StdTime()
 	return d
 }
 
 func (d *searchValueImplementation) SoftDeletedAt() string {
-	return d.Get(COLUMN_SOFT_DELETED_AT)
+	if !d.DeletedAt.Valid || d.DeletedAt.Time.IsZero() {
+		return ""
+	}
+	return carbon.CreateFromStdTime(d.DeletedAt.Time).ToDateTimeString()
 }
 
 func (d *searchValueImplementation) SoftDeletedAtCarbon() *carbon.Carbon {
-	softDeletedAt := d.SoftDeletedAt()
-	return carbon.Parse(softDeletedAt)
+	if !d.DeletedAt.Valid {
+		return carbon.CreateFromStdTime(time.Time{})
+	}
+	return carbon.CreateFromStdTime(d.DeletedAt.Time)
 }
 
 func (d *searchValueImplementation) SetSoftDeletedAt(softDeletedAt string) SearchValueInterface {
-	d.Set(COLUMN_SOFT_DELETED_AT, softDeletedAt)
+	if softDeletedAt == "" {
+		d.DeletedAt = sql.NullTime{Valid: false}
+		return d
+	}
+	t := carbon.Parse(softDeletedAt, carbon.UTC).StdTime()
+	d.DeletedAt = sql.NullTime{Time: t, Valid: true}
 	return d
 }
 
 // ID returns the ID of the exam
 func (o *searchValueImplementation) ID() string {
-	return o.Get(COLUMN_ID)
+	return o.ShortID.ID
 }
 
 // SetID sets the ID of the exam
 func (o *searchValueImplementation) SetID(id string) SearchValueInterface {
-	o.Set(COLUMN_ID, id)
+	o.ShortID.ID = id
 	return o
 }
 
 func (d *searchValueImplementation) SourceReferenceID() string {
-	return d.Get(COLUMN_SOURCE_REFERENCE_ID)
+	return d.SourceReferenceIDField
 }
 
 func (d *searchValueImplementation) SetSourceReferenceID(objectID string) SearchValueInterface {
-	d.Set(COLUMN_SOURCE_REFERENCE_ID, objectID)
+	d.SourceReferenceIDField = objectID
 	return d
 }
 
 func (d *searchValueImplementation) SearchValue() string {
-	return d.Get(COLUMN_SEARCH_VALUE)
+	return d.SearchValueField
 }
 
 func (d *searchValueImplementation) SetSearchValue(value string) SearchValueInterface {
-	d.Set(COLUMN_SEARCH_VALUE, value)
+	d.SearchValueField = value
 	return d
 }
 
 func (d *searchValueImplementation) UpdatedAt() string {
-	return d.Get(COLUMN_UPDATED_AT)
+	if d.UpdatedAtField.IsZero() {
+		return ""
+	}
+	return carbon.CreateFromStdTime(d.UpdatedAtField).ToDateTimeString()
 }
 
 func (d *searchValueImplementation) UpdatedAtCarbon() *carbon.Carbon {
-	updatedAt := d.UpdatedAt()
-	return carbon.Parse(updatedAt)
+	return carbon.CreateFromStdTime(d.UpdatedAtField)
 }
 
 func (d *searchValueImplementation) SetUpdatedAt(updatedAt string) SearchValueInterface {
-	d.Set(COLUMN_UPDATED_AT, updatedAt)
+	if updatedAt == "" {
+		return d
+	}
+	d.UpdatedAtField = carbon.Parse(updatedAt, carbon.UTC).StdTime()
 	return d
 }
 
 func (o *searchValueImplementation) Metas() (map[string]string, error) {
-	metasString := o.Get(COLUMN_METAS)
+	metasString := o.MetasField
 
 	if metasString == "" {
 		return nil, nil
@@ -135,7 +177,7 @@ func (o *searchValueImplementation) SetMetas(data map[string]string) (SearchValu
 		return nil, err
 	}
 
-	o.Set(COLUMN_METAS, string(json))
+	o.MetasField = string(json)
 	return o, nil
 }
 
@@ -191,5 +233,22 @@ func (o *searchValueImplementation) DeleteMeta(key string) (SearchValueInterface
 }
 
 func (o *searchValueImplementation) MarkAsNotDirty() {
-	o.DataObject.MarkAsNotDirty()
+	// No-op with neat ORM traits
+}
+
+func (o *searchValueImplementation) Data() map[string]string {
+	return map[string]string{
+		COLUMN_ID:                  o.ID(),
+		COLUMN_SOURCE_REFERENCE_ID: o.SourceReferenceID(),
+		COLUMN_SEARCH_VALUE:        o.SearchValue(),
+		COLUMN_METAS:               o.MetasField,
+		COLUMN_CREATED_AT:          o.CreatedAt(),
+		COLUMN_UPDATED_AT:          o.UpdatedAt(),
+		COLUMN_SOFT_DELETED_AT:     o.SoftDeletedAt(),
+	}
+}
+
+func (o *searchValueImplementation) DataChanged() map[string]string {
+	// Return all fields as changed since neat ORM traits don't track dirty state
+	return o.Data()
 }
