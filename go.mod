@@ -1,6 +1,6 @@
 module github.com/dracory/blindindexstore
 
-go 1.26.1
+go 1.26.3
 
 require (
 	github.com/dracory/neat v0.14.0
@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/samber/lo v1.53.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
