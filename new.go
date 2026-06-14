@@ -2,10 +2,24 @@ package blindindexstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/dracory/neat"
 )
+
+// == OPTIONS ==================================================================
+
+// NewStoreOptions define the options for creating a new session store
+type NewStoreOptions struct {
+	TableName          string
+	DB                 *sql.DB
+	AutomigrateEnabled bool
+	DebugEnabled       bool
+	Transformer        TransformerInterface
+}
+
+// == CONSTRUCTOR =============================================================
 
 // NewStore creates a new entity store
 func NewStore(opts NewStoreOptions) (StoreInterface, error) {
