@@ -3,7 +3,7 @@ module github.com/dracory/blindindexstore
 go 1.26.3
 
 require (
-	github.com/dracory/neat v0.31.0
+	github.com/dracory/neat v0.32.0
 	modernc.org/sqlite v1.54.0
 )
 
