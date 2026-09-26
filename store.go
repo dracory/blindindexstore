@@ -411,12 +411,12 @@ func (st *storeImplementation) buildQuery(query SearchValueQueryInterface) contr
 			orderDirection = "DESC"
 		}
 		if strings.EqualFold(orderDirection, "ASC") {
-			q = q.OrderBy(query.OrderBy() + " ASC")
+			q = q.OrderBy(query.OrderBy(), "ASC")
 		} else {
-			q = q.OrderBy(query.OrderBy() + " DESC")
+			q = q.OrderBy(query.OrderBy(), "DESC")
 		}
 	} else {
-		q = q.OrderBy(COLUMN_CREATED_AT + " DESC")
+		q = q.OrderByDesc(COLUMN_CREATED_AT)
 	}
 
 	// Handle soft delete filtering
