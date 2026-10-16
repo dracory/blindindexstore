@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"uuid"
+
 	"github.com/dracory/neat/database/orm"
-	neatuid "github.com/dracory/neat/support/uid"
 	"github.com/dromara/carbon/v2"
 )
 
@@ -52,7 +53,7 @@ type SearchValueInterface interface {
 // == CLASS ==================================================================
 
 type searchValueImplementation struct {
-	orm.ShortID
+	orm.StringID
 
 	SourceReferenceIDField string    `db:"source_reference_id"`
 	SearchValueField       string    `db:"search_value"`
@@ -69,7 +70,7 @@ var _ SearchValueInterface = (*searchValueImplementation)(nil) // verify it exte
 
 func NewSearchValue() SearchValueInterface {
 	o := &searchValueImplementation{}
-	o.SetID(neatuid.GenerateShortID())
+	o.SetID(uuid.NewV7().String())
 	o.SetSourceReferenceID("")
 	o.SetSearchValue("")
 	o.SetCreatedAt(carbon.Now(carbon.UTC).ToDateTimeString(carbon.UTC))
@@ -146,12 +147,12 @@ func (d *searchValueImplementation) SetSoftDeletedAt(softDeletedAt string) Searc
 
 // ID returns the ID of the exam
 func (o *searchValueImplementation) ID() string {
-	return o.ShortID.ID
+	return o.StringID.ID
 }
 
 // SetID sets the ID of the exam
 func (o *searchValueImplementation) SetID(id string) SearchValueInterface {
-	o.ShortID.ID = id
+	o.StringID.ID = id
 	return o
 }
 
